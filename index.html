@@ -117,6 +117,52 @@
     .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
     .swatch { min-height: 54px; border-radius: 18px; border: 1px solid rgba(255,255,255,.18); padding: 0; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pattern-current {
+      display: grid;
+      gap: 4px;
+      padding: 16px;
+      border-radius: 22px;
+      border: 1px solid rgba(40, 215, 255, .22);
+      background: linear-gradient(135deg, rgba(40, 215, 255, .14), rgba(52, 245, 165, .10));
+    }
+    .pattern-name { font-size: 1.18rem; font-weight: 900; letter-spacing: -.02em; }
+    .pattern-meta { color: var(--muted); font-size: .86rem; }
+    .pattern-controls { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10px; }
+    .pattern-select, .pattern-filter {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 18px;
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 750;
+    }
+    .pattern-select option, .pattern-filter option { background: #0b1930; color: var(--text); }
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: 10px;
+      max-height: 430px;
+      overflow: auto;
+      padding: 2px 2px 8px;
+    }
+    .pattern-btn {
+      min-height: 74px;
+      padding: 12px;
+      text-align: left;
+      display: grid;
+      gap: 4px;
+      align-content: start;
+    }
+    .pattern-btn.active {
+      color: #03121c;
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--cyan), var(--emerald));
+      box-shadow: 0 10px 26px rgba(40, 215, 255, .24);
+    }
+    .pattern-btn small { opacity: .72; font-weight: 800; }
     .log {
       max-height: 150px; overflow: auto; margin: 0; padding: 12px;
       border-radius: 18px; background: rgba(0,0,0,.24); color: #c8eaff;
@@ -176,17 +222,23 @@
     </section>
 
     <section class="panel stack">
-      <div class="grid2">
-        <div class="stack">
-          <div class="label"><span>Preset</span><span id="presetLabel">1</span></div>
-          <input id="preset" type="range" min="1" max="120" value="1" disabled />
-        </div>
-        <div class="stack">
-          <div class="label"><span>Speed</span><span id="speedLabel">50%</span></div>
-          <input id="speed" type="range" min="1" max="255" value="128" disabled />
-        </div>
+      <div class="label"><span>Pattern presets</span><span id="presetLabel">01 · Rainbow Flow</span></div>
+      <div id="patternCurrent" class="pattern-current">
+        <span class="pattern-name">Rainbow Flow</span>
+        <span class="pattern-meta">Preset 01 · Rainbow</span>
       </div>
-      <p class="hint">Presets vary by firmware. If one does nothing, try nearby numbers.</p>
+      <div class="pattern-controls">
+        <button id="prevPreset" class="ghost" disabled>← Prev</button>
+        <select id="patternFilter" class="pattern-filter" disabled aria-label="Filter patterns"></select>
+        <button id="nextPreset" class="ghost" disabled>Next →</button>
+      </div>
+      <select id="preset" class="pattern-select" disabled aria-label="Choose named pattern preset"></select>
+      <div id="patternGrid" class="pattern-grid"></div>
+      <div class="stack">
+        <div class="label"><span>Pattern speed</span><span id="speedLabel">50%</span></div>
+        <input id="speed" type="range" min="1" max="255" value="128" disabled />
+      </div>
+      <p class="hint">Names are friendly labels for the SP110E’s 120 numbered effects. Use the category filter or scroll the grid; firmware can vary, so treat this as a nicer map while testing.</p>
     </section>
 
     <section class="panel stack">
@@ -218,6 +270,11 @@
       brightnessLabel: document.getElementById('brightnessLabel'),
       preset: document.getElementById('preset'),
       presetLabel: document.getElementById('presetLabel'),
+      patternCurrent: document.getElementById('patternCurrent'),
+      patternGrid: document.getElementById('patternGrid'),
+      patternFilter: document.getElementById('patternFilter'),
+      prevPreset: document.getElementById('prevPreset'),
+      nextPreset: document.getElementById('nextPreset'),
       speed: document.getElementById('speed'),
       speedLabel: document.getElementById('speedLabel'),
       swatches: document.getElementById('swatches'),
@@ -232,6 +289,609 @@
     let lastWrite = Promise.resolve();
 
     const swatchColors = ['#ff2d55', '#ffcc00', '#34f5a5', '#00d5ff', '#5856d6', '#ffffff'];
+    const patternPresets = [
+      {
+            "id": 1,
+            "name": "Rainbow Flow",
+            "group": "Rainbow"
+      },
+      {
+            "id": 2,
+            "name": "Rainbow Chase",
+            "group": "Rainbow"
+      },
+      {
+            "id": 3,
+            "name": "Rainbow Comet",
+            "group": "Rainbow"
+      },
+      {
+            "id": 4,
+            "name": "Rainbow Sparkle",
+            "group": "Rainbow"
+      },
+      {
+            "id": 5,
+            "name": "Rainbow Wipe",
+            "group": "Rainbow"
+      },
+      {
+            "id": 6,
+            "name": "Rainbow Wave",
+            "group": "Rainbow"
+      },
+      {
+            "id": 7,
+            "name": "Rainbow Stack",
+            "group": "Rainbow"
+      },
+      {
+            "id": 8,
+            "name": "Rainbow Pulse",
+            "group": "Rainbow"
+      },
+      {
+            "id": 9,
+            "name": "Rainbow Split",
+            "group": "Rainbow"
+      },
+      {
+            "id": 10,
+            "name": "Rainbow Bounce",
+            "group": "Rainbow"
+      },
+      {
+            "id": 11,
+            "name": "Red Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 12,
+            "name": "Green Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 13,
+            "name": "Blue Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 14,
+            "name": "Cyan Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 15,
+            "name": "Magenta Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 16,
+            "name": "Yellow Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 17,
+            "name": "White Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 18,
+            "name": "Dual Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 19,
+            "name": "Tri-Color Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 20,
+            "name": "Fast Chase",
+            "group": "Chase"
+      },
+      {
+            "id": 21,
+            "name": "Red Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 22,
+            "name": "Green Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 23,
+            "name": "Blue Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 24,
+            "name": "Cyan Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 25,
+            "name": "Magenta Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 26,
+            "name": "Yellow Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 27,
+            "name": "White Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 28,
+            "name": "Rainbow Wipe 2",
+            "group": "Wipe"
+      },
+      {
+            "id": 29,
+            "name": "Center Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 30,
+            "name": "Reverse Wipe",
+            "group": "Wipe"
+      },
+      {
+            "id": 31,
+            "name": "Red Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 32,
+            "name": "Green Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 33,
+            "name": "Blue Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 34,
+            "name": "Cyan Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 35,
+            "name": "Magenta Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 36,
+            "name": "Yellow Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 37,
+            "name": "White Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 38,
+            "name": "Rainbow Pulse 2",
+            "group": "Pulse"
+      },
+      {
+            "id": 39,
+            "name": "Soft Breath",
+            "group": "Pulse"
+      },
+      {
+            "id": 40,
+            "name": "Beat Pulse",
+            "group": "Pulse"
+      },
+      {
+            "id": 41,
+            "name": "Red Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 42,
+            "name": "Green Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 43,
+            "name": "Blue Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 44,
+            "name": "Cyan Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 45,
+            "name": "Magenta Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 46,
+            "name": "Yellow Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 47,
+            "name": "White Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 48,
+            "name": "Rainbow Twinkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 49,
+            "name": "Star Sparkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 50,
+            "name": "Confetti Sparkle",
+            "group": "Twinkle"
+      },
+      {
+            "id": 51,
+            "name": "Red Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 52,
+            "name": "Green Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 53,
+            "name": "Blue Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 54,
+            "name": "Cyan Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 55,
+            "name": "Magenta Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 56,
+            "name": "Yellow Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 57,
+            "name": "White Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 58,
+            "name": "Rainbow Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 59,
+            "name": "Comet Tail",
+            "group": "Meteor"
+      },
+      {
+            "id": 60,
+            "name": "Double Meteor",
+            "group": "Meteor"
+      },
+      {
+            "id": 61,
+            "name": "Red Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 62,
+            "name": "Green Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 63,
+            "name": "Blue Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 64,
+            "name": "Cyan Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 65,
+            "name": "Magenta Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 66,
+            "name": "Yellow Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 67,
+            "name": "White Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 68,
+            "name": "Rainbow Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 69,
+            "name": "Larson Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 70,
+            "name": "Split Scanner",
+            "group": "Scanner"
+      },
+      {
+            "id": 71,
+            "name": "Fire Flicker",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 72,
+            "name": "Lava Flow",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 73,
+            "name": "Amber Glow",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 74,
+            "name": "Ember Chase",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 75,
+            "name": "Candle Spark",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 76,
+            "name": "Ice Flow",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 77,
+            "name": "Frost Pulse",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 78,
+            "name": "Arctic Chase",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 79,
+            "name": "Aurora Drift",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 80,
+            "name": "Northern Lights",
+            "group": "Fire & Ice"
+      },
+      {
+            "id": 81,
+            "name": "Theatre Chase",
+            "group": "Theatre"
+      },
+      {
+            "id": 82,
+            "name": "Theatre Rainbow",
+            "group": "Theatre"
+      },
+      {
+            "id": 83,
+            "name": "Marquee Red",
+            "group": "Theatre"
+      },
+      {
+            "id": 84,
+            "name": "Marquee Blue",
+            "group": "Theatre"
+      },
+      {
+            "id": 85,
+            "name": "Marquee White",
+            "group": "Theatre"
+      },
+      {
+            "id": 86,
+            "name": "Candy Cane",
+            "group": "Theatre"
+      },
+      {
+            "id": 87,
+            "name": "Police Flash",
+            "group": "Theatre"
+      },
+      {
+            "id": 88,
+            "name": "Emergency Strobe",
+            "group": "Theatre"
+      },
+      {
+            "id": 89,
+            "name": "Disco Pop",
+            "group": "Theatre"
+      },
+      {
+            "id": 90,
+            "name": "Party Chase",
+            "group": "Theatre"
+      },
+      {
+            "id": 91,
+            "name": "Sunset Drift",
+            "group": "Gradient"
+      },
+      {
+            "id": 92,
+            "name": "Ocean Drift",
+            "group": "Gradient"
+      },
+      {
+            "id": 93,
+            "name": "Forest Drift",
+            "group": "Gradient"
+      },
+      {
+            "id": 94,
+            "name": "Neon Drift",
+            "group": "Gradient"
+      },
+      {
+            "id": 95,
+            "name": "Pastel Drift",
+            "group": "Gradient"
+      },
+      {
+            "id": 96,
+            "name": "Warm Gradient",
+            "group": "Gradient"
+      },
+      {
+            "id": 97,
+            "name": "Cool Gradient",
+            "group": "Gradient"
+      },
+      {
+            "id": 98,
+            "name": "Purple Dream",
+            "group": "Gradient"
+      },
+      {
+            "id": 99,
+            "name": "Aqua Dream",
+            "group": "Gradient"
+      },
+      {
+            "id": 100,
+            "name": "Golden Hour",
+            "group": "Gradient"
+      },
+      {
+            "id": 101,
+            "name": "White Strobe",
+            "group": "Strobe"
+      },
+      {
+            "id": 102,
+            "name": "Red Strobe",
+            "group": "Strobe"
+      },
+      {
+            "id": 103,
+            "name": "Blue Strobe",
+            "group": "Strobe"
+      },
+      {
+            "id": 104,
+            "name": "RGB Strobe",
+            "group": "Strobe"
+      },
+      {
+            "id": 105,
+            "name": "Spark Strobe",
+            "group": "Strobe"
+      },
+      {
+            "id": 106,
+            "name": "Flash Burst",
+            "group": "Strobe"
+      },
+      {
+            "id": 107,
+            "name": "Lightning",
+            "group": "Strobe"
+      },
+      {
+            "id": 108,
+            "name": "Camera Flash",
+            "group": "Strobe"
+      },
+      {
+            "id": 109,
+            "name": "Rapid Blink",
+            "group": "Strobe"
+      },
+      {
+            "id": 110,
+            "name": "Slow Blink",
+            "group": "Strobe"
+      },
+      {
+            "id": 111,
+            "name": "Color Blocks",
+            "group": "Mixed"
+      },
+      {
+            "id": 112,
+            "name": "Color Drops",
+            "group": "Mixed"
+      },
+      {
+            "id": 113,
+            "name": "Pixel Rain",
+            "group": "Mixed"
+      },
+      {
+            "id": 114,
+            "name": "Running Dots",
+            "group": "Mixed"
+      },
+      {
+            "id": 115,
+            "name": "Bouncing Dots",
+            "group": "Mixed"
+      },
+      {
+            "id": 116,
+            "name": "Center Burst",
+            "group": "Mixed"
+      },
+      {
+            "id": 117,
+            "name": "Edge Burst",
+            "group": "Mixed"
+      },
+      {
+            "id": 118,
+            "name": "Snake Run",
+            "group": "Mixed"
+      },
+      {
+            "id": 119,
+            "name": "Stack Fill",
+            "group": "Mixed"
+      },
+      {
+            "id": 120,
+            "name": "Auto Cycle",
+            "group": "Mixed"
+      }
+];
+    let currentPreset = 1;
 
     function log(message) {
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -287,7 +947,7 @@
       connected = value;
       el.statusDot.classList.toggle('on', value);
       el.statusText.textContent = label || (value ? 'Connected' : 'Not connected');
-      [el.disconnect, el.on, el.off, el.color, el.brightness, el.preset, el.speed].forEach(control => control.disabled = !value);
+      [el.disconnect, el.on, el.off, el.color, el.brightness, el.preset, el.patternFilter, el.prevPreset, el.nextPreset, el.speed].forEach(control => control.disabled = !value);
       el.wheelWrap.classList.toggle('disabled', !value);
       el.wheelWrap.setAttribute('aria-disabled', String(!value));
       el.connect.disabled = value || !navigator.bluetooth;
@@ -399,10 +1059,25 @@
       await writeBytes([v, 0xed, 0x29, 0x2a], 'brightness');
     }
 
+    function getPreset(value) {
+      const id = Math.max(1, Math.min(120, Number(value) || 1));
+      return patternPresets.find(preset => preset.id === id) || patternPresets[0];
+    }
+
+    function updatePresetUi(value) {
+      const preset = getPreset(value);
+      currentPreset = preset.id;
+      const number = String(preset.id).padStart(2, '0');
+      el.presetLabel.textContent = number + ' · ' + preset.name;
+      el.preset.value = String(preset.id);
+      el.patternCurrent.innerHTML = '<span class="pattern-name">' + preset.name + '</span><span class="pattern-meta">Preset ' + number + ' · ' + preset.group + '</span>';
+      Array.from(el.patternGrid.children).forEach(button => button.classList.toggle('active', Number(button.dataset.id) === preset.id));
+    }
+
     async function sendPreset(value) {
-      const v = hexByte(value);
-      el.presetLabel.textContent = String(v);
-      await writeBytes([v, 0x09, 0xfa, 0x2c], 'preset');
+      const preset = getPreset(value);
+      updatePresetUi(preset.id);
+      await writeBytes([preset.id, 0x09, 0xfa, 0x2c], 'preset ' + String(preset.id).padStart(2, '0') + ' ' + preset.name);
     }
 
     async function sendSpeed(value) {
@@ -476,13 +1151,46 @@
       debouncedWheelColor(hex);
     }
 
+
+    function renderPatternControls() {
+      const groups = ['All'].concat(Array.from(new Set(patternPresets.map(preset => preset.group))));
+      el.patternFilter.innerHTML = groups.map(group => '<option value="' + group + '">' + group + '</option>').join('');
+      el.preset.innerHTML = patternPresets.map(preset => '<option value="' + preset.id + '">' + String(preset.id).padStart(2, '0') + ' · ' + preset.name + '</option>').join('');
+      renderPatternGrid();
+      updatePresetUi(currentPreset);
+    }
+
+    function renderPatternGrid() {
+      const group = el.patternFilter.value || 'All';
+      const visible = group === 'All' ? patternPresets : patternPresets.filter(preset => preset.group === group);
+      el.patternGrid.innerHTML = '';
+      visible.forEach(preset => {
+        const button = document.createElement('button');
+        button.className = 'pattern-btn ghost';
+        button.dataset.id = preset.id;
+        button.disabled = !connected;
+        button.innerHTML = '<small>' + String(preset.id).padStart(2, '0') + ' · ' + preset.group + '</small><span>' + preset.name + '</span>';
+        button.addEventListener('click', () => sendPreset(preset.id).catch(err => log(err.message)));
+        el.patternGrid.appendChild(button);
+      });
+      updatePresetUi(currentPreset);
+    }
+
+    function stepPreset(delta) {
+      const next = currentPreset + delta;
+      sendPreset(next < 1 ? 120 : next > 120 ? 1 : next).catch(err => log(err.message));
+    }
+
     el.connect.addEventListener('click', connect);
     el.disconnect.addEventListener('click', disconnect);
     el.on.addEventListener('click', () => writeBytes(toBytes('fa 0e c7 aa'), 'on'));
     el.off.addEventListener('click', () => writeBytes(toBytes('b0 4f c2 ab'), 'off'));
     el.color.addEventListener('input', debounce(sendColor, 90));
     el.brightness.addEventListener('input', debounce(sendBrightness, 80));
-    el.preset.addEventListener('input', debounce(sendPreset, 100));
+    el.preset.addEventListener('change', event => sendPreset(event.target.value).catch(err => log(err.message)));
+    el.patternFilter.addEventListener('change', renderPatternGrid);
+    el.prevPreset.addEventListener('click', () => stepPreset(-1));
+    el.nextPreset.addEventListener('click', () => stepPreset(1));
     el.speed.addEventListener('input', debounce(sendSpeed, 80));
     el.wheelWrap.addEventListener('pointerdown', event => {
       if (!connected) return;
@@ -495,6 +1203,7 @@
 
     drawColorWheel();
     updateWheelCursor(el.color.value);
+    renderPatternControls();
     window.addEventListener('resize', () => updateWheelCursor(el.color.value));
 
     swatchColors.forEach(color => {
@@ -514,6 +1223,7 @@
     setConnected = function(value, label) {
       originalSetConnected(value, label);
       Array.from(el.swatches.children).forEach(button => button.disabled = !value);
+      Array.from(el.patternGrid.children).forEach(button => button.disabled = !value);
     };
 
     if (!navigator.bluetooth) {
