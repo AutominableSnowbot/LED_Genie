@@ -13,7 +13,7 @@ A tiny static PWA for controlling an **SP110E / LED Hue** Bluetooth LED pixel co
 - On/off
 - Touch-friendly colour wheel, native color picker, and quick swatches
 - Brightness
-- Named pattern preset browser with category filter, dropdown, previous/next buttons, and speed slider
+- Named pattern preset browser with animated offline preview, category filter, dropdown, previous/next buttons, and speed slider
 
 ## SP110E protocol used
 
