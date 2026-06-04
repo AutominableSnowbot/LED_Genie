@@ -11,7 +11,7 @@ A tiny static PWA for controlling an **SP110E / LED Hue** Bluetooth LED pixel co
 
 - Connect/disconnect over BLE
 - On/off
-- Color picker and quick swatches
+- Touch-friendly colour wheel, native color picker, and quick swatches
 - Brightness
 - Preset and speed sliders
 

@@ -1,4 +1,4 @@
-const CACHE = 'led-genie-v3';
+const CACHE = 'led-genie-v4';
 const ASSETS = [
   './',
   './index.html',
