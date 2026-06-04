@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#06111f" />
+  <title>LED Genie</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon-192.png" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050915;
+      --panel: rgba(11, 25, 43, 0.74);
+      --panel-2: rgba(16, 36, 61, 0.62);
+      --line: rgba(148, 219, 255, 0.18);
+      --text: #eff9ff;
+      --muted: #9fb6c7;
+      --cyan: #28d7ff;
+      --emerald: #34f5a5;
+      --danger: #ff5f86;
+      --warning: #ffd166;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(40, 215, 255, 0.28), transparent 30rem),
+        radial-gradient(circle at 85% 12%, rgba(52, 245, 165, 0.20), transparent 28rem),
+        radial-gradient(circle at 50% 100%, rgba(95, 92, 255, 0.18), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
+    }
+    .app { width: min(760px, 100%); margin: 0 auto; padding-top: 18px; }
+    .hero {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0; font-size: clamp(2rem, 8vw, 4.6rem); line-height: .9; letter-spacing: -0.07em; }
+    .subtitle { margin: 10px 0 0; color: var(--muted); font-size: 0.98rem; }
+    .orb {
+      width: 84px; height: 84px; border-radius: 28px;
+      background: conic-gradient(from 20deg, #ff5a8a, #ffd166, #35f6a7, #28d7ff, #8b5cf6, #ff5a8a);
+      box-shadow: 0 0 40px rgba(40, 215, 255, .32), inset 0 0 22px rgba(255,255,255,.24);
+      flex: none;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), rgba(8, 17, 31, 0.76));
+      box-shadow: 0 18px 70px rgba(0,0,0,.38);
+      backdrop-filter: blur(18px);
+      border-radius: 28px;
+      padding: 18px;
+      margin: 14px 0;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .stack { display: grid; gap: 12px; }
+    button, select, input[type="number"] {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 18px;
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 14px 16px;
+      font: inherit;
+      min-height: 52px;
+    }
+    button { cursor: pointer; font-weight: 800; letter-spacing: -0.01em; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .primary {
+      border: 0;
+      color: #03121c;
+      background: linear-gradient(135deg, var(--cyan), var(--emerald));
+      box-shadow: 0 12px 30px rgba(40, 215, 255, .25);
+    }
+    .danger { background: rgba(255, 95, 134, .14); border-color: rgba(255, 95, 134, .36); color: #ffd9e2; }
+    .ghost { background: rgba(255,255,255,.06); }
+    .big { flex: 1 1 160px; font-size: 1.04rem; }
+    .status {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: .92rem; line-height: 1.35;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--danger); box-shadow: 0 0 20px currentColor; }
+    .dot.on { background: var(--emerald); }
+    .label { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-weight: 700; font-size: .86rem; text-transform: uppercase; letter-spacing: .08em; }
+    input[type="range"] { width: 100%; accent-color: var(--cyan); min-height: 42px; }
+    input[type="color"] {
+      width: 100%; height: 86px; border-radius: 24px; padding: 0;
+      border: 1px solid rgba(255,255,255,.16); background: transparent;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 23px; }
+    .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+    .swatch { min-height: 54px; border-radius: 18px; border: 1px solid rgba(255,255,255,.18); padding: 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .log {
+      max-height: 150px; overflow: auto; margin: 0; padding: 12px;
+      border-radius: 18px; background: rgba(0,0,0,.24); color: #c8eaff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .78rem;
+      white-space: pre-wrap;
+    }
+    .hint { color: var(--muted); font-size: .9rem; line-height: 1.5; margin: 0; }
+    .unsupported { color: var(--warning); }
+    @media (max-width: 520px) {
+      body { padding-left: 12px; padding-right: 12px; }
+      .panel { border-radius: 24px; padding: 14px; }
+      .grid2 { grid-template-columns: 1fr; }
+      .hero { align-items: flex-start; }
+      .orb { width: 66px; height: 66px; border-radius: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div>
+        <h1>LED Genie</h1>
+        <p class="subtitle">Bluetooth controller for SP110E / LED Hue pixel strips.</p>
+      </div>
+      <div class="orb" aria-hidden="true"></div>
+    </section>
+
+    <section class="panel stack">
+      <div class="row" style="justify-content: space-between;">
+        <span class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not connected</span></span>
+        <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+      </div>
+      <button id="connectBtn" class="primary big">Connect Bluetooth</button>
+      <p id="supportNote" class="hint"></p>
+    </section>
+
+    <section class="panel stack">
+      <div class="row">
+        <button id="onBtn" class="primary big" disabled>Turn on</button>
+        <button id="offBtn" class="danger big" disabled>Turn off</button>
+      </div>
+    </section>
+
+    <section class="panel stack">
+      <div class="label"><span>Color</span><span id="colorLabel">#00d5ff</span></div>
+      <input id="colorPicker" type="color" value="#00d5ff" disabled />
+      <div class="swatches" id="swatches"></div>
+    </section>
+
+    <section class="panel stack">
+      <div class="label"><span>Brightness</span><span id="brightnessLabel">80%</span></div>
+      <input id="brightness" type="range" min="1" max="255" value="204" disabled />
+    </section>
+
+    <section class="panel stack">
+      <div class="grid2">
+        <div class="stack">
+          <div class="label"><span>Preset</span><span id="presetLabel">1</span></div>
+          <input id="preset" type="range" min="1" max="120" value="1" disabled />
+        </div>
+        <div class="stack">
+          <div class="label"><span>Speed</span><span id="speedLabel">50%</span></div>
+          <input id="speed" type="range" min="1" max="255" value="128" disabled />
+        </div>
+      </div>
+      <p class="hint">Presets vary by firmware. If one does nothing, try nearby numbers.</p>
+    </section>
+
+    <section class="panel stack">
+      <div class="label"><span>Diagnostics</span><span>SP110E BLE</span></div>
+      <pre id="log" class="log"></pre>
+      <p class="hint">Use Android/desktop Chrome or Edge. Web Bluetooth is not available in iPhone Safari or Firefox.</p>
+    </section>
+  </main>
+
+  <script>
+    const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+    const WRITE_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+    const INIT_UUID = '0000ffe2-0000-1000-8000-00805f9b34fb';
+
+    const el = {
+      connect: document.getElementById('connectBtn'),
+      disconnect: document.getElementById('disconnectBtn'),
+      statusDot: document.getElementById('statusDot'),
+      statusText: document.getElementById('statusText'),
+      supportNote: document.getElementById('supportNote'),
+      on: document.getElementById('onBtn'),
+      off: document.getElementById('offBtn'),
+      color: document.getElementById('colorPicker'),
+      colorLabel: document.getElementById('colorLabel'),
+      brightness: document.getElementById('brightness'),
+      brightnessLabel: document.getElementById('brightnessLabel'),
+      preset: document.getElementById('preset'),
+      presetLabel: document.getElementById('presetLabel'),
+      speed: document.getElementById('speed'),
+      speedLabel: document.getElementById('speedLabel'),
+      swatches: document.getElementById('swatches'),
+      log: document.getElementById('log')
+    };
+
+    let device = null;
+    let server = null;
+    let writeChar = null;
+    let initChar = null;
+    let connected = false;
+    let lastWrite = Promise.resolve();
+
+    const swatchColors = ['#ff2d55', '#ffcc00', '#34f5a5', '#00d5ff', '#5856d6', '#ffffff'];
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.log.textContent = `[${time}] ${message}\n` + el.log.textContent;
+    }
+
+    function toBytes(hex) {
+      return new Uint8Array(hex.trim().split(/\s+/).map(part => parseInt(part, 16)));
+    }
+
+    function hexByte(n) {
+      return Math.max(0, Math.min(255, Number(n) || 0));
+    }
+
+    function hexToRgb(hex) {
+      const clean = hex.replace('#', '');
+      return [0, 2, 4].map(i => parseInt(clean.slice(i, i + 2), 16));
+    }
+
+    function setConnected(value, label) {
+      connected = value;
+      el.statusDot.classList.toggle('on', value);
+      el.statusText.textContent = label || (value ? 'Connected' : 'Not connected');
+      [el.disconnect, el.on, el.off, el.color, el.brightness, el.preset, el.speed].forEach(control => control.disabled = !value);
+      el.connect.disabled = value || !navigator.bluetooth;
+      el.connect.textContent = value ? 'Connected' : 'Connect Bluetooth';
+    }
+
+    async function writeBytes(bytes, label) {
+      if (!writeChar) throw new Error('Not connected');
+      const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      lastWrite = lastWrite.then(async () => {
+        if (writeChar.properties.writeWithoutResponse) {
+          await writeChar.writeValueWithoutResponse(data);
+        } else {
+          await writeChar.writeValue(data);
+        }
+        log('Sent ' + label + ': ' + Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' '));
+      }).catch(err => {
+        log('Write failed: ' + err.message);
+        throw err;
+      });
+      return lastWrite;
+    }
+
+    async function connect() {
+      if (!navigator.bluetooth) {
+        el.supportNote.innerHTML = '<span class="unsupported">Web Bluetooth is not supported in this browser.</span>';
+        return;
+      }
+      try {
+        el.connect.disabled = true;
+        el.connect.textContent = 'Scanning…';
+        log('Opening Bluetooth picker…');
+        device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [SERVICE_UUID]
+        });
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+        el.statusText.textContent = 'Connecting to ' + (device.name || 'LED controller') + '…';
+        server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        writeChar = await service.getCharacteristic(WRITE_UUID);
+        initChar = await service.getCharacteristic(INIT_UUID);
+
+        if (initChar.properties.writeWithoutResponse) {
+          await initChar.writeValueWithoutResponse(toBytes('01 00'));
+        } else {
+          await initChar.writeValue(toBytes('01 00'));
+        }
+        await writeBytes(toBytes('01 b7 e3 d5'), 'init');
+        setConnected(true, 'Connected to ' + (device.name || 'LED controller'));
+        el.supportNote.textContent = 'Connected. Controls send directly over Bluetooth LE.';
+        await sendColor(el.color.value);
+        await sendBrightness(el.brightness.value);
+      } catch (err) {
+        log('Connect failed: ' + err.message);
+        setConnected(false, 'Not connected');
+        el.connect.disabled = !navigator.bluetooth;
+        el.connect.textContent = 'Connect Bluetooth';
+      }
+    }
+
+    function onDisconnected() {
+      writeChar = null;
+      initChar = null;
+      server = null;
+      setConnected(false, 'Disconnected');
+      log('Bluetooth disconnected');
+    }
+
+    function disconnect() {
+      if (device && device.gatt && device.gatt.connected) device.gatt.disconnect();
+      else onDisconnected();
+    }
+
+    async function sendColor(hex) {
+      const [r, g, b] = hexToRgb(hex);
+      el.colorLabel.textContent = hex.toUpperCase();
+      await writeBytes([r, g, b, 0x1e], 'color');
+    }
+
+    async function sendBrightness(value) {
+      const v = hexByte(value);
+      el.brightnessLabel.textContent = Math.round((v / 255) * 100) + '%';
+      await writeBytes([v, 0xed, 0x29, 0x2a], 'brightness');
+    }
+
+    async function sendPreset(value) {
+      const v = hexByte(value);
+      el.presetLabel.textContent = String(v);
+      await writeBytes([v, 0x09, 0xfa, 0x2c], 'preset');
+    }
+
+    async function sendSpeed(value) {
+      const v = hexByte(value);
+      el.speedLabel.textContent = Math.round((v / 255) * 100) + '%';
+      await writeBytes([v, 0x10, 0x34, 0x03], 'speed');
+    }
+
+    function debounce(fn, wait) {
+      let timer;
+      return function(event) {
+        const value = event.target.value;
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(value).catch(err => log(err.message)), wait);
+      };
+    }
+
+    el.connect.addEventListener('click', connect);
+    el.disconnect.addEventListener('click', disconnect);
+    el.on.addEventListener('click', () => writeBytes(toBytes('fa 0e c7 aa'), 'on'));
+    el.off.addEventListener('click', () => writeBytes(toBytes('b0 4f c2 ab'), 'off'));
+    el.color.addEventListener('input', debounce(sendColor, 90));
+    el.brightness.addEventListener('input', debounce(sendBrightness, 80));
+    el.preset.addEventListener('input', debounce(sendPreset, 100));
+    el.speed.addEventListener('input', debounce(sendSpeed, 80));
+
+    swatchColors.forEach(color => {
+      const button = document.createElement('button');
+      button.className = 'swatch';
+      button.style.background = color;
+      button.setAttribute('aria-label', 'Set color ' + color);
+      button.disabled = true;
+      button.addEventListener('click', () => {
+        el.color.value = color;
+        sendColor(color).catch(err => log(err.message));
+      });
+      el.swatches.appendChild(button);
+    });
+
+    const originalSetConnected = setConnected;
+    setConnected = function(value, label) {
+      originalSetConnected(value, label);
+      Array.from(el.swatches.children).forEach(button => button.disabled = !value);
+    };
+
+    if (!navigator.bluetooth) {
+      el.supportNote.innerHTML = '<span class="unsupported">This browser cannot use Web Bluetooth. Try Android Chrome or desktop Chrome/Edge.</span>';
+      el.connect.disabled = true;
+    } else {
+      el.supportNote.textContent = 'Tap Connect and choose the SP110E / LED Hue controller.';
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
