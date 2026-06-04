@@ -136,9 +136,9 @@
         radial-gradient(circle at 20% 20%, rgba(40, 215, 255, .16), transparent 18rem),
         radial-gradient(circle at 85% 70%, rgba(52, 245, 165, .12), transparent 16rem),
         rgba(0,0,0,.22);
-      min-height: 164px;
+      min-height: 280px;
     }
-    #patternPreview { width: 100%; height: 164px; display: block; }
+    #patternPreview { width: 100%; height: 280px; display: block; }
     .preview-badge {
       position: absolute;
       left: 12px; bottom: 12px;
@@ -252,7 +252,7 @@
         <span class="pattern-meta">Preset 01 · Rainbow</span>
       </div>
       <div class="preview-wrap">
-        <canvas id="patternPreview" width="960" height="260"></canvas>
+        <canvas id="patternPreview" width="960" height="360"></canvas>
         <span id="previewBadge" class="preview-badge">Offline preview</span>
       </div>
       <div class="pattern-controls">
@@ -1254,13 +1254,34 @@
       bg.addColorStop(1, 'rgba(7,34,51,.98)');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
-      for (let i = 0; i < 40; i++) {
-        const y = 44 + (i % 5) * 34;
-        const x = 34 + Math.floor(i / 5) * ((w - 68) / 7);
-        const progress = i / 40;
+      const ledCount = 40;
+      const cx = w / 2;
+      const cy = h / 2 + 6;
+      const ringRadius = Math.min(w, h) * 0.32;
+      const tubeRadius = 38;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148,219,255,.13)';
+      ctx.lineWidth = tubeRadius;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.08)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius - tubeRadius / 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius + tubeRadius / 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      for (let i = 0; i < ledCount; i++) {
+        const progress = i / ledCount;
+        const angle = -Math.PI / 2 + progress * Math.PI * 2;
+        const x = cx + Math.cos(angle) * ringRadius;
+        const y = cy + Math.sin(angle) * ringRadius;
         const phase = preset.group === 'Gradient' ? progress * 0.62 + t * 0.10 : progress + t * 0.16;
         const [r, g, b] = colorAt(palette, phase + preset.id * 0.017);
-        const intensity = patternIntensity(preset, i, 40, t);
+        const intensity = patternIntensity(preset, i, ledCount, t);
         const radius = 11 + intensity * 12;
         const glow = ctx.createRadialGradient(x, y, 2, x, y, radius * 2.6);
         glow.addColorStop(0, 'rgba(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ',' + (0.92 * intensity) + ')');
@@ -1275,12 +1296,22 @@
         ctx.arc(x, y, 8 + intensity * 4, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = 'rgba(255,255,255,.12)';
-      ctx.fillRect(34, h - 42, w - 68, 4);
       const marker = (t * 0.12 + (preset.id % 17) / 17) % 1;
       const [mr, mg, mb] = colorAt(palette, marker);
-      ctx.fillStyle = 'rgb(' + Math.round(mr) + ',' + Math.round(mg) + ',' + Math.round(mb) + ')';
-      ctx.fillRect(34, h - 45, (w - 68) * marker, 10);
+      const markerAngle = -Math.PI / 2 + marker * Math.PI * 2;
+      ctx.strokeStyle = 'rgba(' + Math.round(mr) + ',' + Math.round(mg) + ',' + Math.round(mb) + ',.72)';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius + 34, -Math.PI / 2, markerAngle);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(232,249,255,.72)';
+      ctx.font = '800 18px system-ui, -apple-system, Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('LED ring preview', cx, cy - 4);
+      ctx.fillStyle = 'rgba(148,219,255,.48)';
+      ctx.font = '700 13px system-ui, -apple-system, Segoe UI, sans-serif';
+      ctx.fillText(ledCount + ' virtual LEDs', cx, cy + 20);
       el.previewBadge.textContent = connected ? 'Live preview + controller' : 'Offline preview';
       requestAnimationFrame(drawPatternPreview);
     }
