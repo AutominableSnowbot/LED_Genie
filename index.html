@@ -127,6 +127,30 @@
     }
     .pattern-name { font-size: 1.18rem; font-weight: 900; letter-spacing: -.02em; }
     .pattern-meta { color: var(--muted); font-size: .86rem; }
+    .preview-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(148, 219, 255, .18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(40, 215, 255, .16), transparent 18rem),
+        radial-gradient(circle at 85% 70%, rgba(52, 245, 165, .12), transparent 16rem),
+        rgba(0,0,0,.22);
+      min-height: 164px;
+    }
+    #patternPreview { width: 100%; height: 164px; display: block; }
+    .preview-badge {
+      position: absolute;
+      left: 12px; bottom: 12px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(3, 18, 28, .72);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #c8eaff;
+      font-size: .78rem;
+      font-weight: 800;
+      backdrop-filter: blur(10px);
+    }
     .pattern-controls { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10px; }
     .pattern-select, .pattern-filter {
       width: 100%;
@@ -227,16 +251,20 @@
         <span class="pattern-name">Rainbow Flow</span>
         <span class="pattern-meta">Preset 01 · Rainbow</span>
       </div>
-      <div class="pattern-controls">
-        <button id="prevPreset" class="ghost" disabled>← Prev</button>
-        <select id="patternFilter" class="pattern-filter" disabled aria-label="Filter patterns"></select>
-        <button id="nextPreset" class="ghost" disabled>Next →</button>
+      <div class="preview-wrap">
+        <canvas id="patternPreview" width="960" height="260"></canvas>
+        <span id="previewBadge" class="preview-badge">Offline preview</span>
       </div>
-      <select id="preset" class="pattern-select" disabled aria-label="Choose named pattern preset"></select>
+      <div class="pattern-controls">
+        <button id="prevPreset" class="ghost">← Prev</button>
+        <select id="patternFilter" class="pattern-filter" aria-label="Filter patterns"></select>
+        <button id="nextPreset" class="ghost">Next →</button>
+      </div>
+      <select id="preset" class="pattern-select" aria-label="Choose named pattern preset"></select>
       <div id="patternGrid" class="pattern-grid"></div>
       <div class="stack">
         <div class="label"><span>Pattern speed</span><span id="speedLabel">50%</span></div>
-        <input id="speed" type="range" min="1" max="255" value="128" disabled />
+        <input id="speed" type="range" min="1" max="255" value="128" />
       </div>
       <p class="hint">Names are friendly labels for the SP110E’s 120 numbered effects. Use the category filter or scroll the grid; firmware can vary, so treat this as a nicer map while testing.</p>
     </section>
@@ -271,6 +299,8 @@
       preset: document.getElementById('preset'),
       presetLabel: document.getElementById('presetLabel'),
       patternCurrent: document.getElementById('patternCurrent'),
+      patternPreview: document.getElementById('patternPreview'),
+      previewBadge: document.getElementById('previewBadge'),
       patternGrid: document.getElementById('patternGrid'),
       patternFilter: document.getElementById('patternFilter'),
       prevPreset: document.getElementById('prevPreset'),
@@ -947,7 +977,8 @@
       connected = value;
       el.statusDot.classList.toggle('on', value);
       el.statusText.textContent = label || (value ? 'Connected' : 'Not connected');
-      [el.disconnect, el.on, el.off, el.color, el.brightness, el.preset, el.patternFilter, el.prevPreset, el.nextPreset, el.speed].forEach(control => control.disabled = !value);
+      [el.disconnect, el.on, el.off, el.color, el.brightness].forEach(control => control.disabled = !value);
+      [el.preset, el.patternFilter, el.prevPreset, el.nextPreset, el.speed].forEach(control => control.disabled = false);
       el.wheelWrap.classList.toggle('disabled', !value);
       el.wheelWrap.setAttribute('aria-disabled', String(!value));
       el.connect.disabled = value || !navigator.bluetooth;
@@ -1077,13 +1108,17 @@
     async function sendPreset(value) {
       const preset = getPreset(value);
       updatePresetUi(preset.id);
-      await writeBytes([preset.id, 0x09, 0xfa, 0x2c], 'preset ' + String(preset.id).padStart(2, '0') + ' ' + preset.name);
+      if (connected) {
+        await writeBytes([preset.id, 0x09, 0xfa, 0x2c], 'preset ' + String(preset.id).padStart(2, '0') + ' ' + preset.name);
+      }
     }
 
     async function sendSpeed(value) {
       const v = hexByte(value);
       el.speedLabel.textContent = Math.round((v / 255) * 100) + '%';
-      await writeBytes([v, 0x10, 0x34, 0x03], 'speed');
+      if (connected) {
+        await writeBytes([v, 0x10, 0x34, 0x03], 'speed');
+      }
     }
 
     function debounce(fn, wait) {
@@ -1152,6 +1187,104 @@
     }
 
 
+
+    function paletteForPreset(preset) {
+      const base = {
+        Rainbow: ['#ff2d55', '#ffcc00', '#34f5a5', '#00d5ff', '#5856d6'],
+        Chase: ['#00d5ff', '#34f5a5', '#ffffff'],
+        Wipe: ['#ff2d55', '#ffcc00', '#00d5ff'],
+        Pulse: ['#00d5ff', '#ffffff'],
+        Twinkle: ['#ffffff', '#00d5ff', '#ffcc00'],
+        Meteor: ['#00d5ff', '#ffffff', '#5856d6'],
+        Scanner: ['#ff2d55', '#ffffff'],
+        'Fire & Ice': preset.name.toLowerCase().includes('ice') || preset.name.toLowerCase().includes('frost') || preset.name.toLowerCase().includes('arctic') ? ['#dff9ff', '#00d5ff', '#5856d6'] : ['#ff2d55', '#ff8a00', '#ffcc00'],
+        Theatre: ['#ff2d55', '#ffffff', '#00d5ff'],
+        Gradient: ['#ff2d55', '#ffcc00', '#34f5a5', '#00d5ff'],
+        Strobe: ['#ffffff', '#111827'],
+        Mixed: ['#ff2d55', '#ffcc00', '#34f5a5', '#00d5ff', '#5856d6', '#ffffff']
+      };
+      return base[preset.group] || base.Mixed;
+    }
+
+    function colorAt(palette, value) {
+      const scaled = ((value % 1) + 1) % 1 * palette.length;
+      const i = Math.floor(scaled);
+      const t = scaled - i;
+      const [r1, g1, b1] = hexToRgb(palette[i % palette.length]);
+      const [r2, g2, b2] = hexToRgb(palette[(i + 1) % palette.length]);
+      return [r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t];
+    }
+
+    function patternIntensity(preset, index, total, time) {
+      const x = index / Math.max(1, total - 1);
+      const n = preset.name.toLowerCase();
+      const g = preset.group;
+      if (g === 'Pulse') return 0.24 + 0.76 * (0.5 + 0.5 * Math.sin(time * 5 + x * Math.PI * 2));
+      if (g === 'Twinkle') return ((Math.sin((index * 37.7) + time * 9) + Math.sin(index * 11.3 + time * 13)) > 1.15) ? 1 : 0.18;
+      if (g === 'Meteor') {
+        const head = ((time * 0.45) % 1);
+        const d = Math.min(Math.abs(x - head), 1 - Math.abs(x - head));
+        return Math.max(0.12, 1 - d * 8);
+      }
+      if (g === 'Scanner') {
+        const pos = 0.5 + 0.5 * Math.sin(time * 2.8);
+        return Math.max(0.12, 1 - Math.abs(x - pos) * 10);
+      }
+      if (g === 'Strobe') return Math.sin(time * (n.includes('slow') ? 4 : 16)) > 0 ? 1 : 0.12;
+      if (g === 'Theatre') return ((index + Math.floor(time * 8)) % 3) === 0 ? 1 : 0.2;
+      if (g === 'Wipe') return x < ((time * 0.28) % 1) ? 1 : 0.16;
+      if (g === 'Chase') return ((index + Math.floor(time * 10)) % (n.includes('fast') ? 4 : 6)) < 2 ? 1 : 0.2;
+      if (g === 'Fire & Ice') return 0.45 + 0.55 * Math.max(0, Math.sin(index * 1.7 + time * 8) * Math.sin(index * 0.43 + time * 3));
+      if (g === 'Mixed') return 0.32 + 0.68 * (0.5 + 0.5 * Math.sin(time * 4 + index * 0.9));
+      return 0.82;
+    }
+
+    function drawPatternPreview(now) {
+      const canvas = el.patternPreview;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const preset = getPreset(currentPreset);
+      const palette = paletteForPreset(preset);
+      const speed = 0.35 + (Number(el.speed.value) / 255) * 1.65;
+      const t = (now || 0) / 1000 * speed;
+      ctx.clearRect(0, 0, w, h);
+      const bg = ctx.createLinearGradient(0, 0, w, h);
+      bg.addColorStop(0, 'rgba(3,18,28,.98)');
+      bg.addColorStop(1, 'rgba(7,34,51,.98)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 40; i++) {
+        const y = 44 + (i % 5) * 34;
+        const x = 34 + Math.floor(i / 5) * ((w - 68) / 7);
+        const progress = i / 40;
+        const phase = preset.group === 'Gradient' ? progress * 0.62 + t * 0.10 : progress + t * 0.16;
+        const [r, g, b] = colorAt(palette, phase + preset.id * 0.017);
+        const intensity = patternIntensity(preset, i, 40, t);
+        const radius = 11 + intensity * 12;
+        const glow = ctx.createRadialGradient(x, y, 2, x, y, radius * 2.6);
+        glow.addColorStop(0, 'rgba(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ',' + (0.92 * intensity) + ')');
+        glow.addColorStop(0.36, 'rgba(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ',' + (0.34 * intensity) + ')');
+        glow.addColorStop(1, 'rgba(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ',0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgb(' + Math.round(r * intensity) + ',' + Math.round(g * intensity) + ',' + Math.round(b * intensity) + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, 8 + intensity * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.12)';
+      ctx.fillRect(34, h - 42, w - 68, 4);
+      const marker = (t * 0.12 + (preset.id % 17) / 17) % 1;
+      const [mr, mg, mb] = colorAt(palette, marker);
+      ctx.fillStyle = 'rgb(' + Math.round(mr) + ',' + Math.round(mg) + ',' + Math.round(mb) + ')';
+      ctx.fillRect(34, h - 45, (w - 68) * marker, 10);
+      el.previewBadge.textContent = connected ? 'Live preview + controller' : 'Offline preview';
+      requestAnimationFrame(drawPatternPreview);
+    }
+
     function renderPatternControls() {
       const groups = ['All'].concat(Array.from(new Set(patternPresets.map(preset => preset.group))));
       el.patternFilter.innerHTML = groups.map(group => '<option value="' + group + '">' + group + '</option>').join('');
@@ -1168,7 +1301,7 @@
         const button = document.createElement('button');
         button.className = 'pattern-btn ghost';
         button.dataset.id = preset.id;
-        button.disabled = !connected;
+        button.disabled = false;
         button.innerHTML = '<small>' + String(preset.id).padStart(2, '0') + ' · ' + preset.group + '</small><span>' + preset.name + '</span>';
         button.addEventListener('click', () => sendPreset(preset.id).catch(err => log(err.message)));
         el.patternGrid.appendChild(button);
@@ -1204,6 +1337,7 @@
     drawColorWheel();
     updateWheelCursor(el.color.value);
     renderPatternControls();
+    requestAnimationFrame(drawPatternPreview);
     window.addEventListener('resize', () => updateWheelCursor(el.color.value));
 
     swatchColors.forEach(color => {
@@ -1223,7 +1357,7 @@
     setConnected = function(value, label) {
       originalSetConnected(value, label);
       Array.from(el.swatches.children).forEach(button => button.disabled = !value);
-      Array.from(el.patternGrid.children).forEach(button => button.disabled = !value);
+      Array.from(el.patternGrid.children).forEach(button => button.disabled = false);
     };
 
     if (!navigator.bluetooth) {
