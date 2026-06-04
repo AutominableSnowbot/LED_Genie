@@ -232,15 +232,23 @@
       el.connect.textContent = value ? 'Connected' : 'Connect Bluetooth';
     }
 
+    function writeToCharacteristic(characteristic, data) {
+      if (characteristic.properties.writeWithoutResponse) {
+        return characteristic.writeValueWithoutResponse(data);
+      }
+      return characteristic.writeValue(data);
+    }
+
+    function findCharacteristic(characteristics, uuid) {
+      const lower = uuid.toLowerCase();
+      return characteristics.find(char => char.uuid.toLowerCase() === lower || char.uuid.toLowerCase().startsWith(lower.slice(0, 8)));
+    }
+
     async function writeBytes(bytes, label) {
       if (!writeChar) throw new Error('Not connected');
       const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       lastWrite = lastWrite.then(async () => {
-        if (writeChar.properties.writeWithoutResponse) {
-          await writeChar.writeValueWithoutResponse(data);
-        } else {
-          await writeChar.writeValue(data);
-        }
+        await writeToCharacteristic(writeChar, data);
         log('Sent ' + label + ': ' + Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' '));
       }).catch(err => {
         log('Write failed: ' + err.message);
@@ -266,15 +274,19 @@
         el.statusText.textContent = 'Connecting to ' + (device.name || 'LED controller') + '…';
         server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
-        writeChar = await service.getCharacteristic(WRITE_UUID);
-        initChar = await service.getCharacteristic(INIT_UUID);
+        const characteristics = await service.getCharacteristics();
+        log('Found chars: ' + characteristics.map(char => char.uuid.split('-')[0].replace('0000', '')).join(', '));
+        writeChar = findCharacteristic(characteristics, WRITE_UUID);
+        initChar = findCharacteristic(characteristics, INIT_UUID);
+        if (!writeChar) throw new Error('No writable ffe1 characteristic found on service ffe0. Found: ' + characteristics.map(char => char.uuid).join(', '));
 
-        if (initChar.properties.writeWithoutResponse) {
-          await initChar.writeValueWithoutResponse(toBytes('01 00'));
+        if (initChar) {
+          await writeToCharacteristic(initChar, toBytes('01 00'));
+          log('Sent init ffe2: 01 00');
         } else {
-          await initChar.writeValue(toBytes('01 00'));
+          log('No ffe2 characteristic found; using ffe1-only SP110E variant mode.');
         }
-        await writeBytes(toBytes('01 b7 e3 d5'), 'init');
+        await writeBytes(toBytes('01 b7 e3 d5'), 'init ffe1');
         setConnected(true, 'Connected to ' + (device.name || 'LED controller'));
         el.supportNote.textContent = 'Connected. Controls send directly over Bluetooth LE.';
         await sendColor(el.color.value);

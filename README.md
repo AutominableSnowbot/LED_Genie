@@ -18,9 +18,10 @@ A tiny static PWA for controlling an **SP110E / LED Hue** Bluetooth LED pixel co
 ## SP110E protocol used
 
 - Service: `ffe0`
-- Init characteristic: `ffe2`
+- Init characteristic: `ffe2` when present; some SP110E BLE variants expose only `ffe1`
 - Write characteristic: `ffe1`
-- Init writes: `01 00` to `ffe2`, then `01 b7 e3 d5` to `ffe1`
+- Init writes: `01 00` to `ffe2` if available, then `01 b7 e3 d5` to `ffe1`
+- The app logs discovered characteristics during connect to help identify firmware variants
 - Commands:
   - On: `fa 0e c7 aa`
   - Off: `b0 4f c2 ab`
